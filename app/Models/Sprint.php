@@ -122,10 +122,17 @@ class Sprint extends Model
      */
     public function getProgressPercentageAttribute(): float
     {
-        if ($this->total_hours === 0) {
+        // 1. Cast to float to handle strings ("0"), nulls, or integers safely.
+        $total = (float) $this->total_hours;
+        $completed = (float) $this->completed_hours;
+
+        // 2. Check if total is zero (or negative) to avoid division errors.
+        if ($total <= 0) {
             return 0;
         }
-        return round(($this->completed_hours / $this->total_hours) * 100, 1);
+
+        // 3. Perform the calculation.
+        return round(($completed / $total) * 100, 1);
     }
 
     /**
