@@ -57,6 +57,14 @@ class SprintController extends Controller
             'stories.epic',
         ]);
 
+        // Get backlog stories (stories without a sprint)
+        $backlogStories = $project->stories()
+            ->whereNull('sprint_id')
+            ->with(['assignee', 'epic'])
+            ->orderBy('priority', 'desc')
+            ->orderBy('order')
+            ->get();
+
         $columns = [
             ['id' => 'backlog', 'title' => 'Backlog', 'status' => 'backlog'],
             ['id' => 'todo', 'title' => 'To Do', 'status' => 'todo'],
@@ -70,6 +78,7 @@ class SprintController extends Controller
         return Inertia::render('Sprints/Show', [
             'project' => $project,
             'sprint' => $sprint,
+            'backlogStories' => $backlogStories,
             'columns' => $columns,
             'burndownData' => $burndownData,
             'isOnTrack' => $sprint->isOnTrack(),

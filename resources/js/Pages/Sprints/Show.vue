@@ -1,17 +1,21 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import MainLayout from '@/Layouts/MainLayout.vue';
-import type { Project, Sprint } from '@/Types';
+import type { Project, Sprint, Story } from '@/Types';
 
 interface Props {
     project: Project;
     sprint: Sprint;
+    backlogStories: Story[];
     columns: { id: string; title: string; status: string }[];
     burndownData: any[];
     isOnTrack: boolean;
 }
 
 const props = defineProps<Props>();
+
+const showBacklogPicker = ref(false);
 
 const startSprint = () => {
     router.post(`/projects/${props.project.id}/sprints/${props.sprint.id}/start`);
@@ -21,6 +25,22 @@ const completeSprint = () => {
     if (confirm('Complete this sprint? Incomplete stories will be moved to backlog.')) {
         router.post(`/projects/${props.project.id}/sprints/${props.sprint.id}/complete`);
     }
+};
+
+const addStoryToSprint = (story: Story) => {
+    router.post(`/projects/${props.project.id}/stories/${story.id}/move-to-sprint`, {
+        sprint_id: props.sprint.id
+    }, {
+        preserveScroll: true
+    });
+};
+
+const removeStoryFromSprint = (story: Story) => {
+    router.post(`/projects/${props.project.id}/stories/${story.id}/move-to-sprint`, {
+        sprint_id: null
+    }, {
+        preserveScroll: true
+    });
 };
 
 const statusConfig = {
@@ -205,28 +225,42 @@ const formatDate = (date: string) => {
                 <div class="bg-white dark:bg-slate-800/50 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/50 overflow-hidden">
                     <div class="p-6 border-b border-slate-200/60 dark:border-slate-700/50 flex items-center justify-between">
                         <h2 class="text-lg font-semibold text-slate-900 dark:text-white">
-                            Stories
+                            Stories in Sprint
                             <span class="ml-2 text-sm font-normal text-slate-500 dark:text-slate-400">({{ sprint.stories?.length || 0 }})</span>
                         </h2>
-                        <Link
-                            :href="`/projects/${project.id}/stories/create?sprint_id=${sprint.id}`"
-                            class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-all"
-                        >
-                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                            </svg>
-                            Add Story
-                        </Link>
+                        <div class="flex items-center space-x-2">
+                            <button
+                                v-if="backlogStories.length > 0"
+                                @click="showBacklogPicker = !showBacklogPicker"
+                                class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-all"
+                            >
+                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                </svg>
+                                Add from Backlog
+                            </button>
+                            <Link
+                                :href="`/projects/${project.id}/stories/create?sprint_id=${sprint.id}`"
+                                class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-all"
+                            >
+                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                Create New
+                            </Link>
+                        </div>
                     </div>
                     <div class="divide-y divide-slate-100 dark:divide-slate-700/50">
-                        <Link
+                        <div
                             v-for="story in sprint.stories"
                             :key="story.id"
-                            :href="`/projects/${project.id}/stories/${story.id}`"
-                            class="block p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
+                            class="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
                         >
                             <div class="flex items-center justify-between">
-                                <div class="flex-1 min-w-0">
+                                <Link
+                                    :href="`/projects/${project.id}/stories/${story.id}`"
+                                    class="flex-1 min-w-0"
+                                >
                                     <div class="flex items-center space-x-2 mb-1">
                                         <span class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded">{{ story.story_key }}</span>
                                         <span :class="['text-xs font-medium px-2 py-0.5 rounded', priorityConfig[story.priority].bg, priorityConfig[story.priority].text]">
@@ -234,15 +268,21 @@ const formatDate = (date: string) => {
                                         </span>
                                     </div>
                                     <p class="text-sm font-medium text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">{{ story.title }}</p>
-                                </div>
+                                </Link>
                                 <div class="flex items-center space-x-3 ml-4">
                                     <span class="text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">{{ story.estimated_hours }}h</span>
-                                    <svg class="w-4 h-4 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                                    </svg>
+                                    <button
+                                        @click="removeStoryFromSprint(story)"
+                                        class="p-1.5 text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                        title="Remove from sprint"
+                                    >
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
-                        </Link>
+                        </div>
                         <div v-if="!sprint.stories?.length" class="p-12 text-center">
                             <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                                 <svg class="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -250,18 +290,91 @@ const formatDate = (date: string) => {
                                 </svg>
                             </div>
                             <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">No stories in this sprint yet</p>
-                            <Link
-                                :href="`/projects/${project.id}/stories/create?sprint_id=${sprint.id}`"
-                                class="inline-flex items-center text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
-                            >
-                                Add your first story
-                                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                                </svg>
-                            </Link>
+                            <div class="flex flex-col items-center space-y-2">
+                                <button
+                                    v-if="backlogStories.length > 0"
+                                    @click="showBacklogPicker = true"
+                                    class="inline-flex items-center text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
+                                >
+                                    Add stories from backlog
+                                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                    </svg>
+                                </button>
+                                <Link
+                                    :href="`/projects/${project.id}/stories/create?sprint_id=${sprint.id}`"
+                                    class="inline-flex items-center text-sm font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+                                >
+                                    Or create a new story
+                                </Link>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- Backlog Stories Picker -->
+                <Transition
+                    enter-active-class="transition duration-200 ease-out"
+                    enter-from-class="transform opacity-0 -translate-y-2"
+                    enter-to-class="transform opacity-100 translate-y-0"
+                    leave-active-class="transition duration-150 ease-in"
+                    leave-from-class="transform opacity-100 translate-y-0"
+                    leave-to-class="transform opacity-0 -translate-y-2"
+                >
+                    <div v-if="showBacklogPicker && backlogStories.length > 0" class="bg-white dark:bg-slate-800/50 rounded-2xl shadow-sm border border-slate-200/60 dark:border-slate-700/50 overflow-hidden">
+                        <div class="p-6 border-b border-slate-200/60 dark:border-slate-700/50 flex items-center justify-between bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/10 dark:to-orange-900/10">
+                            <div>
+                                <h2 class="text-lg font-semibold text-slate-900 dark:text-white">
+                                    Product Backlog
+                                    <span class="ml-2 text-sm font-normal text-slate-500 dark:text-slate-400">({{ backlogStories.length }} available)</span>
+                                </h2>
+                                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Click the + button to add a story to this sprint</p>
+                            </div>
+                            <button
+                                @click="showBacklogPicker = false"
+                                class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-all"
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="divide-y divide-slate-100 dark:divide-slate-700/50 max-h-96 overflow-y-auto">
+                            <div
+                                v-for="story in backlogStories"
+                                :key="story.id"
+                                class="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
+                            >
+                                <div class="flex items-center justify-between">
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center space-x-2 mb-1">
+                                            <span class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded">{{ story.story_key }}</span>
+                                            <span :class="['text-xs font-medium px-2 py-0.5 rounded', priorityConfig[story.priority].bg, priorityConfig[story.priority].text]">
+                                                {{ story.priority }}
+                                            </span>
+                                            <span v-if="story.epic" class="text-xs text-slate-500 dark:text-slate-400">
+                                                {{ story.epic.name }}
+                                            </span>
+                                        </div>
+                                        <p class="text-sm font-medium text-slate-900 dark:text-white truncate">{{ story.title }}</p>
+                                    </div>
+                                    <div class="flex items-center space-x-3 ml-4">
+                                        <span class="text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">{{ story.estimated_hours }}h</span>
+                                        <button
+                                            @click="addStoryToSprint(story)"
+                                            class="p-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg transition-all"
+                                            title="Add to sprint"
+                                        >
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </Transition>
             </div>
 
             <!-- Sidebar -->
@@ -303,6 +416,27 @@ const formatDate = (date: string) => {
                             <p class="text-sm text-slate-600 dark:text-slate-400">{{ sprint.days_remaining }} days remaining</p>
                         </div>
                     </div>
+                </div>
+
+                <!-- Backlog Summary -->
+                <div v-if="backlogStories.length > 0" class="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/10 dark:to-orange-900/10 rounded-2xl shadow-sm border border-amber-200/60 dark:border-amber-800/50 p-6">
+                    <div class="flex items-center space-x-3 mb-3">
+                        <div class="p-2 bg-amber-100 dark:bg-amber-900/50 rounded-lg">
+                            <svg class="w-5 h-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-amber-800 dark:text-amber-300">{{ backlogStories.length }} stories in backlog</p>
+                            <p class="text-xs text-amber-600 dark:text-amber-400">Ready to be added</p>
+                        </div>
+                    </div>
+                    <button
+                        @click="showBacklogPicker = !showBacklogPicker"
+                        class="w-full px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-xl shadow-sm transition-all duration-200"
+                    >
+                        {{ showBacklogPicker ? 'Hide Backlog' : 'View Backlog' }}
+                    </button>
                 </div>
 
                 <!-- Quick Actions -->
