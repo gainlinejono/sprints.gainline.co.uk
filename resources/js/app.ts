@@ -1,6 +1,6 @@
 import '../css/app.css';
 
-import { createApp, h, DefineComponent } from 'vue';
+import { createApp, h } from 'vue';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { createPinia } from 'pinia';
 import VueApexCharts from 'vue3-apexcharts';
@@ -8,8 +8,12 @@ import VueApexCharts from 'vue3-apexcharts';
 createInertiaApp({
     title: (title) => title ? `${title} - Sprint Planner` : 'Sprint Planner',
     resolve: (name) => {
-        const pages = import.meta.glob<DefineComponent>('./Pages/**/*.vue', { eager: true });
-        return pages[`./Pages/${name}.vue`];
+        const pages = import.meta.glob('./Pages/**/*.vue', { eager: true }) as Record<string, any>;
+        const page = pages[`./Pages/${name}.vue`];
+        if (!page) {
+            throw new Error(`Page not found: ${name}`);
+        }
+        return page.default || page;
     },
     setup({ el, App, props, plugin }) {
         const pinia = createPinia();
