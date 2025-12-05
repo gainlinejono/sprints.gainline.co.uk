@@ -79,6 +79,10 @@ class Sprint extends Model
      */
     public function getTotalHoursAttribute(): float
     {
+        // Use loaded relationship if available, otherwise query
+        if ($this->relationLoaded('stories')) {
+            return $this->stories->sum('estimated_hours');
+        }
         return $this->stories()->sum('estimated_hours');
     }
 
@@ -87,6 +91,10 @@ class Sprint extends Model
      */
     public function getCompletedHoursAttribute(): float
     {
+        // Use loaded relationship if available, otherwise query
+        if ($this->relationLoaded('stories')) {
+            return $this->stories->where('status', 'done')->sum('estimated_hours');
+        }
         return $this->stories()->where('status', 'done')->sum('estimated_hours');
     }
 

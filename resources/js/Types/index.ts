@@ -24,13 +24,17 @@ export interface Permission {
 export interface Project {
     id: number;
     name: string;
+    key: string;
     description?: string;
     color: string;
+    is_active?: boolean;
     created_at: string;
     updated_at: string;
     epics?: Epic[];
     sprints?: Sprint[];
     members?: User[];
+    total_hours?: number;
+    completed_hours?: number;
 }
 
 export interface Sprint {
@@ -48,6 +52,9 @@ export interface Sprint {
     total_hours?: number;
     completed_hours?: number;
     remaining_hours?: number;
+    days_remaining?: number;
+    progress_percentage?: number;
+    stories_count?: number;
 }
 
 export interface Epic {
@@ -71,6 +78,7 @@ export interface Story {
     epic_id?: number;
     sprint_id?: number;
     project_id: number;
+    story_key: string;
     title: string;
     description?: string;
     acceptance_criteria?: string;
@@ -89,6 +97,9 @@ export interface Story {
     assignee?: User;
     reporter?: User;
     logged_hours?: number;
+    remaining_hours?: number;
+    tasks_count?: number;
+    completed_tasks_count?: number;
     comments?: Comment[];
 }
 
